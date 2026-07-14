@@ -3,26 +3,29 @@ export const dynamic = 'force-dynamic';
 import { createClient } from '@vercel/kv';
 import { NextResponse } from 'next/server';
 
-// إنشاء اتصال مرن يدعم البادئة الافتراضية KV_ أو البادئة المخصصة STORAGE_ التي ظهرت في إعداداتك
-const kv = createClient({
-  url: process.env.KV_REST_API_URL || process.env.STORAGE_REST_API_URL,
-  token: process.env.KV_REST_API_TOKEN || process.env.STORAGE_REST_API_TOKEN,
-});
+// نترك المتغير فارغاً في البداية لمنع أي محاولة اتصال أثناء البناء (Build)
+let kvClient = null;
 
-// دالة التحقق الذكي من وجود أي من المفاتيح المتاحة
-function verifyDatabaseConfig() {
-  const url = process.env.KV_REST_API_URL || process.env.STORAGE_REST_API_URL;
-  const token = process.env.KV_REST_API_TOKEN || process.env.STORAGE_REST_API_TOKEN;
-  
-  if (!url || !token) {
-    throw new Error("مفاتيح اتصال قاعدة البيانات غير متوفرة. تأكد من وجود KV_REST_API_URL أو STORAGE_REST_API_URL في إعدادات فيرسيل.");
+// دالة ذكية تنشئ الاتصال فقط عند الحاجة الفعلية إليه (Lazy Initialization)
+function getKV() {
+  if (!kvClient) {
+    const url = process.env.KV_REST_API_URL || process.env.STORAGE_REST_API_URL;
+    const token = process.env.KV_REST_API_TOKEN || process.env.STORAGE_REST_API_TOKEN;
+    
+    if (!url || !token) {
+      throw new Error("مفاتيح اتصال قاعدة البيانات غير متوفرة. تأكد من ربط الـ Storage وإعادة البناء.");
+    }
+    
+    // إنشاء الاتصال لأول مرة وحفظه في الذاكرة
+    kvClient = createClient({ url, token });
   }
+  return kvClient;
 }
 
 // جلب قائمة الوكلاء بالكامل
 export async function GET() {
   try {
-    verifyDatabaseConfig();
+    const kv = getKV(); // جلب العميل بأمان
     const agents = await kv.get('sudacash_agents');
     return NextResponse.json(agents || []);
   } catch (error) {
@@ -34,7 +37,7 @@ export async function GET() {
 // إضافة أو تحديث بيانات وكيل
 export async function POST(request) {
   try {
-    verifyDatabaseConfig();
+    const kv = getKV(); // جلب العميل بأمان
     const body = await request.json();
     const { shop_name, phone, commission, cash, provides_cash, provides_mbok, is_verified } = body;
 
