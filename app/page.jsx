@@ -8,14 +8,12 @@ export default function Home() {
   
   // خيارات الفرز والتصفية
   const [maxComm, setMaxComm] = useState(25);
-  const [starlinkOnly, setStarlinkOnly] = useState(false);
 
   // حقول إضافة الوكيل
   const [shopName, setShopName] = useState('');
   const [phone, setPhone] = useState('');
   const [commission, setCommission] = useState(12);
   const [cash, setCash] = useState(500000);
-  const [starlink, setStarlink] = useState(true);
   const [isVerified, setIsVerified] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -25,7 +23,6 @@ export default function Home() {
     const cachedTime = localStorage.getItem('sudacash_agents_time');
     const now = Date.now();
     
-    // استخدام التخزين المؤقت إذا لم يمر 5 دقائق وتفادياً لإرهاق السيرفر
     if (cachedData && cachedTime && (now - cachedTime < 300000) && !force) {
       setAgents(JSON.parse(cachedData));
       setLoading(false);
@@ -66,7 +63,6 @@ export default function Home() {
           phone, 
           commission: Number(commission), 
           cash: Number(cash), 
-          starlink,
           is_verified: isVerified 
         })
       });
@@ -82,7 +78,6 @@ export default function Home() {
 
   const filteredAgents = agents.filter(agent => {
     if (agent.commission > maxComm) return false;
-    if (starlinkOnly && !agent.starlink) return false;
     return true;
   });
 
@@ -109,18 +104,12 @@ export default function Home() {
             {/* خيارات التصفية */}
             <div className="bg-slate-900/40 border border-slate-800/60 rounded-2xl p-4 mb-6 backdrop-blur-md">
               <h2 className="text-[10px] tracking-widest text-slate-500 font-bold mb-3 uppercase">تخصيص البحث</h2>
-              <div className="mb-4">
+              <div>
                 <div className="flex justify-between text-xs mb-1">
                   <span className="text-slate-300">أقصى نسبة عمولة مقبولة</span>
                   <span className="text-cyan-400 font-black">{maxComm}%</span>
                 </div>
                 <input type="range" min="5" max="30" value={maxComm} onChange={(e) => setMaxComm(e.target.value)} className="w-full accent-emerald-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer" />
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-slate-300">متاجر إنترنت ستارلينك فقط</span>
-                <button onClick={() => setStarlinkOnly(!starlinkOnly)} className={`w-10 h-5 flex items-center rounded-full p-0.5 duration-300 ${starlinkOnly ? 'bg-emerald-500' : 'bg-slate-800'}`}>
-                  <div className={`bg-slate-950 w-4 h-4 rounded-full shadow transform duration-300 ${starlinkOnly ? 'translate-x-5' : ''}`}></div>
-                </button>
               </div>
             </div>
 
@@ -156,11 +145,6 @@ export default function Home() {
                         <span className="text-[9px] text-slate-500 block">النقد المتوفر حالياً</span>
                         <span className="font-mono text-cyan-400 font-bold text-sm">{agent.cash.toLocaleString()} ج.س</span>
                       </div>
-                      {agent.starlink ? (
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">📡 إنترنت ستارلينك</span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-800 text-slate-500">شبكة عادية</span>
-                      )}
                     </div>
                     <a href={`tel:${agent.phone}`} className="mt-3 flex items-center justify-center py-2 bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700/60 hover:border-slate-600 text-slate-200 text-xs font-bold rounded-xl transition-all">
                       📞 اتصال لتأكيد وحجز الكاش
@@ -197,16 +181,6 @@ export default function Home() {
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">عمولتك الحالية (%)</label>
                 <input type="number" value={commission} onChange={(e) => setCommission(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-3 text-sm text-emerald-400 font-mono font-bold outline-none focus:border-emerald-500" />
               </div>
-            </div>
-            
-            <div className="flex justify-between items-center py-2 border-t border-b border-slate-800/40">
-              <div>
-                <span className="text-xs font-bold block">هل إنترنت ستارلينك يعمل لديك الآن؟</span>
-                <span className="text-[10px] text-slate-500">فعل هذا الخيار لتأكيد استلامك للتحويلات فورياً دون تأخير.</span>
-              </div>
-              <button type="button" onClick={() => setStarlink(!starlink)} className={`w-10 h-5 flex items-center rounded-full p-0.5 duration-300 ${starlink ? 'bg-emerald-500' : 'bg-slate-800'}`}>
-                <div className={`bg-slate-950 w-4 h-4 rounded-full shadow transform duration-300 ${starlink ? 'translate-x-5' : ''}`}></div>
-              </button>
             </div>
 
             {/* مساحة التوثيق المدفوع */}
