@@ -10,11 +10,11 @@ export default function Home() {
   const [maxComm, setMaxComm] = useState(25);
   const [filterNeed, setFilterNeed] = useState('all'); // 'all', 'cash', 'mbok'
 
-  // حقول إضافة الوكيل
+  // حقول إضافة الوكيل (تم تعديلها لتبدأ فارغة لتمكين التلميحات الرمادية)
   const [shopName, setShopName] = useState('');
   const [phone, setPhone] = useState('');
-  const [commission, setCommission] = useState(12);
-  const [cash, setCash] = useState(500000);
+  const [commission, setCommission] = useState(''); // فارغ ليعرض Placeholder "12"
+  const [cash, setCash] = useState(''); // فارغ ليعرض Placeholder "500,000"
   const [providesCash, setProvidesCash] = useState(true);
   const [providesMbok, setProvidesMbok] = useState(true);
   const [isVerified, setIsVerified] = useState(false);
@@ -51,6 +51,17 @@ export default function Home() {
     fetchAgents();
   }, [view]);
 
+  // دالة لتنسيق أرقام الكاش بفواصل الآلاف أثناء الكتابة
+  const handleCashChange = (e) => {
+    const rawValue = e.target.value.replace(/\D/g, ''); // حذف أي رمز غير عددي
+    if (rawValue === '') {
+      setCash('');
+      return;
+    }
+    const formatted = Number(rawValue).toLocaleString('en-US');
+    setCash(formatted);
+  };
+
   // إرسال تحديثات الوكيل لقاعدة البيانات
   const handleBroadcast = async (e) => {
     e.preventDefault();
@@ -60,6 +71,10 @@ export default function Home() {
     }
     setIsUpdating(true);
 
+    // استخدام القيم المدخلة أو استرجاع القيم الافتراضية إذا ترك الحقل فارغاً
+    const finalCommission = commission === '' ? 12 : Number(commission);
+    const finalCash = cash === '' ? 500000 : Number(cash.replace(/,/g, ''));
+
     try {
       await fetch('/api/agents', {
         method: 'POST',
@@ -67,8 +82,8 @@ export default function Home() {
         body: JSON.stringify({ 
           shop_name: shopName, 
           phone, 
-          commission: Number(commission), 
-          cash: Number(cash), 
+          commission: finalCommission, 
+          cash: finalCash, 
           provides_cash: providesCash,
           provides_mbok: providesMbok,
           is_verified: isVerified 
@@ -85,10 +100,8 @@ export default function Home() {
   };
 
   const filteredAgents = agents.filter(agent => {
-    // تصفية حسب العمولة
     if (agent.commission > maxComm) return false;
     
-    // تصفية حسب احتياج المستخدم (نقد أو بنكك) مع دعم البيانات القديمة بشكل آمن
     const hasCash = agent.provides_cash !== false; 
     const hasMbok = agent.provides_mbok === true;  
 
@@ -99,7 +112,7 @@ export default function Home() {
   });
 
   return (
-    <div className="min-h-screen flex flex-col font-sans bg-slate-950">
+    <div className="min-h-screen flex flex-col font-sans bg-slate-950 text-slate-100">
       {/* أعلى الصفحة */}
       <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50 px-4 py-3 flex justify-between items-center">
         <div className="flex items-center gap-2">
@@ -260,14 +273,36 @@ export default function Home() {
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">رقم الهاتف لطلب الخدمة</label>
               <input type="tel" placeholder="مثال: 0912345678" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-3 text-sm text-slate-200 outline-none focus:border-emerald-500" />
             </div>
+            
             <div className="grid grid-cols-2 gap-3">
+              {/* حقل إدخال الكاش مع تلميح وتنسيق الفواصل */}
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">الرصيد / الكاش المتوفر</label>
-                <input type="number" value={cash} onChange={(e) => setCash(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-3 text-sm text-emerald-400 font-mono font-bold outline-none focus:border-emerald-500" />
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">الكاش / الرصيد المتوفر</label>
+                <input 
+                  type="text" 
+                  inputMode="numeric"
+                  placeholder="500,000" 
+                  value={cash} 
+                  onChange={handleCashChange} 
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-3 text-sm text-emerald-400 font-mono font-bold outline-none focus:border-emerald-500 placeholder-slate-600" 
+                />
               </div>
+              {/* حقل إدخال العمولة مع تلميح رمادي مخصص */}
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">عمولتك الحالية (%)</label>
-                <input type="number" value={commission} onChange={(e) => setCommission(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-3 text-sm text-emerald-400 font-mono font-bold outline-none focus:border-emerald-500" />
+                <input 
+                  type="text" 
+                  inputMode="decimal"
+                  placeholder="12" 
+                  value={commission} 
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '' || /^[0-9]*\.?[0-9]*$/.test(val)) {
+                      setCommission(val);
+                    }
+                  }} 
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-3 text-sm text-emerald-400 font-mono font-bold outline-none focus:border-emerald-500 placeholder-slate-600" 
+                />
               </div>
             </div>
 
