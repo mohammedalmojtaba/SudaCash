@@ -1,9 +1,28 @@
-import { kv } from '@vercel/kv';
+export const dynamic = 'force-dynamic'; 
+
+import { createClient } from '@vercel/kv';
 import { NextResponse } from 'next/server';
 
-// جلب قائمة الوكلاء بالكامل مع تمرير الخطأ الحقيقي إن وجد
+// إنشاء اتصال مرن يدعم البادئة الافتراضية KV_ أو البادئة المخصصة STORAGE_ التي ظهرت في إعداداتك
+const kv = createClient({
+  url: process.env.KV_REST_API_URL || process.env.STORAGE_REST_API_URL,
+  token: process.env.KV_REST_API_TOKEN || process.env.STORAGE_REST_API_TOKEN,
+});
+
+// دالة التحقق الذكي من وجود أي من المفاتيح المتاحة
+function verifyDatabaseConfig() {
+  const url = process.env.KV_REST_API_URL || process.env.STORAGE_REST_API_URL;
+  const token = process.env.KV_REST_API_TOKEN || process.env.STORAGE_REST_API_TOKEN;
+  
+  if (!url || !token) {
+    throw new Error("مفاتيح اتصال قاعدة البيانات غير متوفرة. تأكد من وجود KV_REST_API_URL أو STORAGE_REST_API_URL في إعدادات فيرسيل.");
+  }
+}
+
+// جلب قائمة الوكلاء بالكامل
 export async function GET() {
   try {
+    verifyDatabaseConfig();
     const agents = await kv.get('sudacash_agents');
     return NextResponse.json(agents || []);
   } catch (error) {
@@ -15,6 +34,7 @@ export async function GET() {
 // إضافة أو تحديث بيانات وكيل
 export async function POST(request) {
   try {
+    verifyDatabaseConfig();
     const body = await request.json();
     const { shop_name, phone, commission, cash, provides_cash, provides_mbok, is_verified } = body;
 
@@ -55,7 +75,6 @@ export async function POST(request) {
     return NextResponse.json({ success: true, agent: updatedAgent });
   } catch (error) {
     console.error("Database POST Error:", error);
-    // تمرير رسالة الخطأ الحقيقية للواجهة الأمامية لتسهيل التشخيص
     return NextResponse.json({ error: error.message || "Failed to save agent to database" }, { status: 500 });
   }
 }
