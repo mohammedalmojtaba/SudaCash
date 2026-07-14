@@ -1,14 +1,14 @@
 import { kv } from '@vercel/kv';
 import { NextResponse } from 'next/server';
 
-// جلب قائمة الوكلاء بالكامل
+// جلب قائمة الوكلاء بالكامل مع تمرير الخطأ الحقيقي إن وجد
 export async function GET() {
   try {
     const agents = await kv.get('sudacash_agents');
     return NextResponse.json(agents || []);
   } catch (error) {
     console.error("Database GET Error:", error);
-    return NextResponse.json({ error: "Failed to fetch agents from database" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Failed to fetch agents" }, { status: 500 });
   }
 }
 
@@ -30,7 +30,7 @@ export async function POST(request) {
 
     // تجهيز بيانات الوكيل الجديد/المحدث
     const updatedAgent = {
-      id: phone, // استخدام رقم الهاتف كمعرّف فريد للوكيل لسهولة التحديث
+      id: phone, 
       shop_name,
       phone,
       commission: Number(commission),
@@ -41,7 +41,7 @@ export async function POST(request) {
       last_updated: new Date().toISOString()
     };
 
-    // إذا كان الوكيل موجوداً مسبقاً بنفس رقم الهاتف، نقوم بتحديثه، وإلا نضيفه كجديد
+    // تحديث البيانات إذا كان الوكيل موجوداً مسبقاً، أو إضافته كجديد
     const existingIndex = agents.findIndex(a => a.id === phone);
     if (existingIndex > -1) {
       agents[existingIndex] = updatedAgent;
@@ -55,6 +55,7 @@ export async function POST(request) {
     return NextResponse.json({ success: true, agent: updatedAgent });
   } catch (error) {
     console.error("Database POST Error:", error);
-    return NextResponse.json({ error: "Failed to save agent to database" }, { status: 500 });
+    // تمرير رسالة الخطأ الحقيقية للواجهة الأمامية لتسهيل التشخيص
+    return NextResponse.json({ error: error.message || "Failed to save agent to database" }, { status: 500 });
   }
 }
