@@ -13,7 +13,7 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { shop_name, phone, commission, cash, is_verified } = body;
+    const { shop_name, phone, commission, cash, provides_cash, provides_mbok, is_verified } = body;
 
     if (!shop_name || !phone) {
       return NextResponse.json({ error: 'Missing shop name or phone number' }, { status: 400 });
@@ -28,6 +28,8 @@ export async function POST(request) {
       phone,
       commission: Number(commission),
       cash: Number(cash),
+      provides_cash: provides_cash !== undefined ? Boolean(provides_cash) : true,
+      provides_mbok: provides_mbok !== undefined ? Boolean(provides_mbok) : false,
       is_verified: Boolean(is_verified),
       last_updated: new Date().toISOString()
     };

@@ -8,12 +8,15 @@ export default function Home() {
   
   // خيارات الفرز والتصفية
   const [maxComm, setMaxComm] = useState(25);
+  const [filterNeed, setFilterNeed] = useState('all'); // 'all', 'cash', 'mbok'
 
   // حقول إضافة الوكيل
   const [shopName, setShopName] = useState('');
   const [phone, setPhone] = useState('');
   const [commission, setCommission] = useState(12);
   const [cash, setCash] = useState(500000);
+  const [providesCash, setProvidesCash] = useState(true);
+  const [providesMbok, setProvidesMbok] = useState(true);
   const [isVerified, setIsVerified] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -52,6 +55,9 @@ export default function Home() {
   const handleBroadcast = async (e) => {
     e.preventDefault();
     if (!shopName || !phone) return alert('الرجاء إدخال اسم المتجر ورقم الهاتف للتحقق');
+    if (!providesCash && !providesMbok) {
+      return alert('الرجاء تحديد خيار واحد على الأقل مما توفره (كاش أو بنكك)');
+    }
     setIsUpdating(true);
 
     try {
@@ -63,6 +69,8 @@ export default function Home() {
           phone, 
           commission: Number(commission), 
           cash: Number(cash), 
+          provides_cash: providesCash,
+          provides_mbok: providesMbok,
           is_verified: isVerified 
         })
       });
@@ -77,7 +85,16 @@ export default function Home() {
   };
 
   const filteredAgents = agents.filter(agent => {
+    // تصفية حسب العمولة
     if (agent.commission > maxComm) return false;
+    
+    // تصفية حسب احتياج المستخدم (نقد أو بنكك) مع دعم البيانات القديمة بشكل آمن
+    const hasCash = agent.provides_cash !== false; 
+    const hasMbok = agent.provides_mbok === true;  
+
+    if (filterNeed === 'cash' && !hasCash) return false;
+    if (filterNeed === 'mbok' && !hasMbok) return false;
+
     return true;
   });
 
@@ -102,14 +119,44 @@ export default function Home() {
         {view === 'user' ? (
           <div>
             {/* خيارات التصفية */}
-            <div className="bg-slate-900/40 border border-slate-800/60 rounded-2xl p-4 mb-6 backdrop-blur-md">
-              <h2 className="text-[10px] tracking-widest text-slate-500 font-bold mb-3 uppercase">تخصيص البحث</h2>
+            <div className="bg-slate-900/40 border border-slate-800/60 rounded-2xl p-4 mb-6 backdrop-blur-md space-y-4">
+              <h2 className="text-[10px] tracking-widest text-slate-500 font-bold uppercase">تخصيص البحث</h2>
+              
+              {/* اختيار نوع الخدمة المطلوبة */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 block mb-1.5">ماذا تحتاج؟</label>
+                <div className="grid grid-cols-3 gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                  <button 
+                    type="button"
+                    onClick={() => setFilterNeed('all')} 
+                    className={`py-1.5 text-xs font-bold rounded-lg transition-all ${filterNeed === 'all' ? 'bg-slate-800 text-emerald-400' : 'text-slate-400'}`}
+                  >
+                    الكل
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setFilterNeed('cash')} 
+                    className={`py-1.5 text-xs font-bold rounded-lg transition-all ${filterNeed === 'cash' ? 'bg-slate-800 text-emerald-400' : 'text-slate-400'}`}
+                  >
+                    💵 كاش نقد
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setFilterNeed('mbok')} 
+                    className={`py-1.5 text-xs font-bold rounded-lg transition-all ${filterNeed === 'mbok' ? 'bg-slate-800 text-emerald-400' : 'text-slate-400'}`}
+                  >
+                    📱 تحويل بنكك
+                  </button>
+                </div>
+              </div>
+
+              {/* شريط التحكم في أقصى عمولة */}
               <div>
                 <div className="flex justify-between text-xs mb-1">
                   <span className="text-slate-300">أقصى نسبة عمولة مقبولة</span>
                   <span className="text-cyan-400 font-black">{maxComm}%</span>
                 </div>
-                <input type="range" min="5" max="30" value={maxComm} onChange={(e) => setMaxComm(e.target.value)} className="w-full accent-emerald-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer" />
+                <input type="range" min="5" max="30" value={maxComm} onChange={(e) => setMaxComm(Number(e.target.value))} className="w-full accent-emerald-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer" />
               </div>
             </div>
 
@@ -123,34 +170,53 @@ export default function Home() {
               <div className="text-center py-10 text-slate-500 text-xs">جاري فحص شبكة الوكلاء...</div>
             ) : (
               <div className="space-y-3">
-                {filteredAgents.map(agent => (
-                  <div key={agent.id} className="bg-slate-900/20 border border-slate-800/80 rounded-2xl p-4 shadow-xl">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h4 className="font-bold text-slate-200 text-base flex items-center gap-1.5">
-                          {agent.shop_name}
-                          {agent.is_verified && (
-                            <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/30">🌟 موثوق</span>
-                          )}
-                        </h4>
-                        <span className="text-[10px] text-slate-500 font-mono block mt-0.5">تحديث: {new Date(agent.last_updated).toLocaleTimeString('ar-SD')}</span>
+                {filteredAgents.map(agent => {
+                  const hasCash = agent.provides_cash !== false;
+                  const hasMbok = agent.provides_mbok === true;
+
+                  return (
+                    <div key={agent.id} className="bg-slate-900/20 border border-slate-800/80 rounded-2xl p-4 shadow-xl">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h4 className="font-bold text-slate-200 text-base flex items-center gap-1.5">
+                            {agent.shop_name}
+                            {agent.is_verified && (
+                              <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/30">🌟 موثوق</span>
+                            )}
+                          </h4>
+                          <span className="text-[10px] text-slate-500 font-mono block mt-0.5">تحديث: {new Date(agent.last_updated).toLocaleTimeString('ar-SD')}</span>
+                          
+                          {/* شارات الخدمات المتوفرة لدى هذا الوكيل */}
+                          <div className="flex gap-1.5 mt-2">
+                            {hasCash && (
+                              <span className="px-2 py-0.5 rounded-md text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                                💵 يوفر كاش
+                              </span>
+                            )}
+                            {hasMbok && (
+                              <span className="px-2 py-0.5 rounded-md text-[9px] font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 flex items-center gap-1">
+                                📱 يوفر بنكك
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-emerald-400 font-black text-xl">{agent.commission}%</div>
+                          <span className="text-[9px] text-slate-500 uppercase font-bold tracking-tight">عمولة التسييل</span>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-emerald-400 font-black text-xl">{agent.commission}%</div>
-                        <span className="text-[9px] text-slate-500 uppercase font-bold tracking-tight">عمولة التسييل</span>
+                      <div className="flex justify-between items-center pt-3 mt-3 border-t border-slate-800/40">
+                        <div>
+                          <span className="text-[9px] text-slate-500 block">النقد/الرصيد المتوفر</span>
+                          <span className="font-mono text-cyan-400 font-bold text-sm">{agent.cash.toLocaleString()} ج.س</span>
+                        </div>
                       </div>
+                      <a href={`tel:${agent.phone}`} className="mt-3 flex items-center justify-center py-2 bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700/60 hover:border-slate-600 text-slate-200 text-xs font-bold rounded-xl transition-all">
+                        📞 اتصال لتأكيد وحجز الخدمة
+                      </a>
                     </div>
-                    <div className="flex justify-between items-center pt-2 border-t border-slate-800/40">
-                      <div>
-                        <span className="text-[9px] text-slate-500 block">النقد المتوفر حالياً</span>
-                        <span className="font-mono text-cyan-400 font-bold text-sm">{agent.cash.toLocaleString()} ج.س</span>
-                      </div>
-                    </div>
-                    <a href={`tel:${agent.phone}`} className="mt-3 flex items-center justify-center py-2 bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700/60 hover:border-slate-600 text-slate-200 text-xs font-bold rounded-xl transition-all">
-                      📞 اتصال لتأكيد وحجز الكاش
-                    </a>
-                  </div>
-                ))}
+                  );
+                })}
                 {filteredAgents.length === 0 && (
                   <div className="text-center py-12 text-slate-600 text-xs">لا يوجد وكلاء يطابقون هذه الفلاتر حالياً.</div>
                 )}
@@ -162,24 +228,46 @@ export default function Home() {
           <form onSubmit={handleBroadcast} className="bg-slate-900/20 border border-slate-800 rounded-2xl p-5 space-y-4">
             <div>
               <h3 className="text-lg font-black bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">بث كوكيل كاش</h3>
-              <p className="text-[11px] text-slate-500 mt-0.5">اضبط إعدادات النقد والعمولة لتظهر للمستخدمين الباحثين عن كاش في منطقتك.</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">اضبط إعدادات النقد والعمولة لتظهر للمستخدمين الباحثين عن كاش أو تحويل بنكك في منطقتك.</p>
             </div>
+            
+            {/* تحديد ما يوفره الوكيل للمستخدمين */}
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">ماذا توفر في متجرك حالياً؟</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setProvidesCash(!providesCash)}
+                  className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${providesCash ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400' : 'bg-slate-950 border-slate-800 text-slate-500'}`}
+                >
+                  💵 توفير نقد (كاش ورقي)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProvidesMbok(!providesMbok)}
+                  className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${providesMbok ? 'bg-cyan-500/10 border-cyan-500 text-cyan-400' : 'bg-slate-950 border-slate-800 text-slate-500'}`}
+                >
+                  📱 توفير تحويل بنكك (رقمي)
+                </button>
+              </div>
+            </div>
+
             <div>
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">اسم المتجر / المحل</label>
               <input type="text" placeholder="مثال: بقالة الأمل - بورتسودان" value={shopName} onChange={(e) => setShopName(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-3 text-sm text-slate-200 outline-none focus:border-emerald-500" />
             </div>
             <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">رقم الهاتف لطلب الكاش</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">رقم الهاتف لطلب الخدمة</label>
               <input type="tel" placeholder="مثال: 0912345678" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-3 text-sm text-slate-200 outline-none focus:border-emerald-500" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">الكاش المتوفر (ج.س)</label>
-                <input type="number" value={cash} onChange={(e) => setCash(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-3 text-sm text-emerald-400 font-mono font-bold outline-none focus:border-emerald-500" />
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">الرصيد / الكاش المتوفر</label>
+                <input type="number" value={cash} onChange={(e) => setCash(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-3 text-sm text-emerald-400 font-mono font-bold outline-none focus:border-emerald-500" />
               </div>
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">عمولتك الحالية (%)</label>
-                <input type="number" value={commission} onChange={(e) => setCommission(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-3 text-sm text-emerald-400 font-mono font-bold outline-none focus:border-emerald-500" />
+                <input type="number" value={commission} onChange={(e) => setCommission(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-3 text-sm text-emerald-400 font-mono font-bold outline-none focus:border-emerald-500" />
               </div>
             </div>
 
@@ -191,12 +279,21 @@ export default function Home() {
                 <br />
                 <span>حساب بنكك: </span><span className="font-mono text-cyan-400 font-bold">3767723</span> باسم <span className="font-bold text-slate-200">محمد المجتبى عصام</span>
                 <br />
-                ثم أرسل لقطة شاشة للتحويل عبر واتساب ليقوم المشرف بتفعيل الشارة الذهبية لحسابك.
+                ثم أرسل لقطة شاشة للتحويل عبر واتساب إلى الرقم{' '}
+                <a 
+                  href="https://wa.me/249999119052" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-emerald-400 font-bold underline hover:text-emerald-300"
+                >
+                  +249999119052
+                </a>{' '}
+                ليقوم المشرف بتفعيل الشارة الذهبية لحسابك.
               </p>
             </div>
 
             <button type="submit" disabled={isUpdating} className="w-full py-3 bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 font-black text-xs uppercase tracking-widest rounded-xl transition-all hover:opacity-90 disabled:opacity-50">
-              {isUpdating ? 'جاري بث الإشارة...' : 'بث تحديث الكاش الآن'}
+              {isUpdating ? 'جاري بث الإشارة...' : 'بث تحديث الخدمة الآن'}
             </button>
           </form>
         )}
