@@ -76,7 +76,7 @@ export default function Home() {
     const finalCash = cash === '' ? 500000 : Number(cash.replace(/,/g, ''));
 
     try {
-      await fetch('/api/agents', {
+      const res = await fetch('/api/agents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -89,11 +89,15 @@ export default function Home() {
           is_verified: isVerified 
         })
       });
+
+      // التحقق من حالة استجابة السيرفر لمنع رسائل النجاح المزيفة
+      if (!res.ok) throw new Error('فشل السيرفر في حفظ البيانات');
+
       alert('تم تحديث حالتك وبثها بنجاح في محيطك!');
       localStorage.removeItem('sudacash_agents_cache'); // إجبار النظام على تحديث البيانات فوراً
       setView('user');
     } catch (err) {
-      alert('حدث خطأ أثناء بث الحالة');
+      alert('حدث خطأ أثناء بث الحالة: تأكد من ربط قاعدة البيانات وإعادة تشغيل البناء في فيرسيل');
     } finally {
       setIsUpdating(false);
     }
@@ -137,7 +141,7 @@ export default function Home() {
               
               {/* اختيار نوع الخدمة المطلوبة */}
               <div>
-                <label className="text-[10px] font-bold text-slate-400 block mb-1.5">ماذا تحتاج؟</label>
+                <label className="text-[10px] font-bold text-slate-400 block mb-1.5">ماذا تحتاج?</label>
                 <div className="grid grid-cols-3 gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800">
                   <button 
                     type="button"
